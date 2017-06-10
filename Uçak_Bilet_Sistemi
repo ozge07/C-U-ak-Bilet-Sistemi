@@ -1,0 +1,437 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+struct passengerNode{
+	
+	char name[50];	//holds the name of the passengers
+	struct passengerNode *next;
+};
+
+struct flightRecord{
+	
+	int flightNo;	//holds the flight number of the flights
+	int capacity;	//holds the passenger capacity of the plane
+	int reservationCount;	//holds the number of current passengers in the flight
+	struct passengerNode *passengerListHead;	
+	struct passengerNode *waitingListHead;
+	struct flightRecord *next;
+};
+
+//function declarations
+void processCommands();
+void inquire(char *);
+void cancel(char *, int);
+void reserve(char *, int);
+void status();
+struct flightRecord *initialise();
+
+struct flightRecord *head;
+
+int main(){  	
+  	
+  	head = initialise();
+	processCommands();           		
+		
+	return 0;
+}
+
+struct flightRecord *initialise()	//gets the data from the txt file and creates linked list for the flights and fills the flight nodes by information taken from txt file
+{  	
+  	char line[256];
+    
+    int counter=0,tempval=1,number_of_flights,flight_no,flight_capacity;
+
+    FILE *file = fopen("FlightCodeCapacity.txt", "r");
+    
+    if (file == NULL)	printf( "Error! Can't open input file!\n");
+	
+	fscanf(file, "%d", &number_of_flights);
+	
+	struct flightRecord *head = (struct flightRecord*)malloc(sizeof(struct flightRecord));
+	
+	if(head==NULL)	printf("OUT OF MEMORY !\n");
+	
+	head->next=NULL;
+	
+	struct flightRecord *temp2=head;
+	
+	while(counter < number_of_flights){	//creates as many flight nodes as number of flights
+		
+		struct flightRecord *temp=(struct flightRecord*)malloc(sizeof(struct flightRecord));
+		if(temp==NULL)	printf("OUT OF MEMORY !\n");
+		
+		while(temp2->next!=NULL)	temp2=temp2->next;
+		
+		temp2->next=temp;		
+		temp->next=NULL;		
+		counter++;
+		
+	}  	
+	
+	temp2=head->next;
+	
+	counter = 0; 
+  	while (counter < number_of_flights)	//fills nodes
+    {
+      	fscanf(file, "%d %d", &flight_no, &flight_capacity);  
+		
+		temp2->flightNo = flight_no;		
+		temp2->capacity = flight_capacity;		
+		temp2->reservationCount=0;		
+		temp2->passengerListHead=malloc(sizeof(struct passengerNode));
+		if(temp2->passengerListHead==NULL)	printf("OUT OF MEMORY !\n");	
+		temp2->passengerListHead->next=NULL;	
+		temp2->waitingListHead=malloc(sizeof(struct passengerNode));	
+		if(temp2->waitingListHead==NULL)	printf("OUT OF MEMORY !\n");
+		temp2->waitingListHead->next=NULL;	
+		temp2=temp2->next;
+		counter++;
+	}    
+    fclose(file); 
+	
+	return head;	
+}
+
+void processCommands(){	//takes the commands from the user and calls the appropriate functions
+		
+  char name[50], name2[50],command[8], chr;
+  int flightno, i=1, temp=1, counter=0;
+	
+	printf("ENTER COMMAND: ");
+	scanf("%s",command);
+	
+	while(strcmp(command,"EXIT"))
+	{		
+		if(!strcmp(command,"INQUIRE")){
+			
+			scanf("%c",&chr);
+			gets(name);
+			
+			inquire(name);
+		}
+		else if(!strcmp(command,"CANCEL")){
+			
+			scanf("%s %s", name, name2);
+			strcat(name, " ");
+			strcat(name,name2);
+			
+			for (i=0;i<=49;i++)	name2[i] = '\0';
+			scanf("%c",&chr);
+			i=0;
+			while(chr!=13){
+				if(chr>=48 && chr<=57){
+					scanf("%d",&temp);
+					flightno=temp;
+					for(i = chr - '0';temp!=0;temp/=10)	i*=10;
+					flightno+=i;
+					break;
+				}		
+				else{
+					if(chr!=32){
+								name2[i]=chr;
+								i++;
+								scanf("%c",&chr);
+								counter=1;
+					}
+					else{
+						scanf("%c",&chr);
+						if(chr>=48 && chr<=57)	counter=1;
+						else{
+							name2[i]=32;
+							i++;
+							name2[i]=chr;
+							}
+						}
+					}
+				}
+			if(counter==1)	strcat(name,name2);
+			cancel(name,flightno);	
+		}
+		else if(!strcmp(command,"RESERVE")){
+			
+			scanf("%s %s", name, name2);
+			strcat(name, " ");
+			strcat(name,name2);
+			
+			for (i=0;i<=49;i++)	name2[i] = '\0';
+			scanf("%c",&chr);
+			i=0;
+			while(chr!=13){
+				if(chr>=48 && chr<=57){
+					scanf("%d",&temp);
+					flightno=temp;
+					for(i = chr - '0';temp!=0;temp/=10)	i*=10;
+					flightno+=i;
+					break;
+				}		
+				else{
+					if(chr!=32){
+								name2[i]=chr;
+								i++;
+								scanf("%c",&chr);
+								counter=1;
+					}
+					else{
+						scanf("%c",&chr);
+						if(chr>=48 && chr<=57)	counter=1;
+						else{
+							name2[i]=32;
+							i++;
+							name2[i]=chr;
+							}
+						}
+					}
+				}
+			
+			if(counter==1)	strcat(name,name2);
+			reserve(name,flightno);	
+		}
+		else if(!strcmp(command,"STATUS")){
+			status();
+		}
+		else{
+			printf("WRONG COMMAND\n");
+			fflush(stdin);
+		}
+		printf("\nENTER COMMAND: ");
+		scanf("%s",command);
+	}
+}
+
+void reserve(char *name, int flightno){	//sets the passengers to the appropriate places
+	
+	struct flightRecord *temp = head->next;
+	
+	while(temp->flightNo!=flightno){
+		
+		temp=temp->next;
+		if(temp==NULL)	break;
+	}
+	
+	if(temp==NULL)	printf("WRONG FLIGHT NUMBER !\n");
+	
+	else{	
+	
+		if(temp->capacity!=temp->reservationCount){	//places the passengers to passenger list
+		
+			struct passengerNode *temp2=(struct passengerNode*)malloc(sizeof(struct passengerNode));
+			if(temp2==NULL)	printf("OUT OF MEMORY !\n");
+		
+			struct passengerNode *temp3=temp->passengerListHead;
+		
+			while(temp3->next!=NULL)	temp3=temp3->next;
+			
+			temp3->next=temp2;
+			
+			strcpy(temp2->name,name);
+			
+			temp2->next=NULL;
+			
+			temp->reservationCount++;
+			
+			printf("RESERVATION SUCCESSFUL\n");
+		}
+		else{	//places the passengers to waiting list
+			
+			struct passengerNode *temp2=(struct passengerNode*)malloc(sizeof(struct passengerNode));
+			if(temp2==NULL)	printf("OUT OF MEMORY !\n");
+		
+			struct passengerNode *temp3=temp->waitingListHead;
+		
+			while(temp3->next!=NULL)	temp3=temp3->next;
+			
+			temp3->next=temp2;
+			
+			strcpy(temp2->name,name);
+			
+			temp2->next=NULL;
+			
+			printf("YOU HAVE BEEN PLACED IN WAITING LIST\n");	
+			}
+		}
+}
+
+void cancel(char *name, int flightno){	//cancels the passenger's reservation
+	
+	struct flightRecord *temp=head->next;
+	int counter=1;
+	
+	while(temp->flightNo!=flightno){
+		
+		temp=temp->next;
+		if(temp==NULL)	break;
+	}
+	
+	if(temp==NULL)	printf("WRONG FLIGHT NUMBER !\n");
+	
+	else{	
+		if(temp->reservationCount==0)	printf("NO PASSENGER EXIST IN FLIGHT NUMBER %d\n",temp->flightNo);
+		else{
+			struct passengerNode *temp2=temp->passengerListHead;
+			
+			while(strcmp(temp2->next->name,name)){
+				
+				temp2=temp2->next;
+				
+				if(temp2->next==NULL){
+					counter=0;
+					break;	
+				}
+			}
+			
+			if(counter==0){
+				
+				struct passengerNode *temp3=temp->waitingListHead;
+				
+				while(strcmp(temp3->next->name,name)){
+				
+					temp3=temp3->next;
+				
+					if(temp3==NULL)	break;
+				}
+				
+				if(temp3==NULL)	printf("PASSENGER NOT FOUND !\n");
+				
+				else{	//cancels the reservation of passengers that are in the waiting list
+						
+						struct passengerNode *rem=temp3->next;
+						
+						temp3->next=temp3->next->next;
+		            	free(rem);
+		            	
+		            	printf("CANCELLATION SUCCESSFUL\n");
+				}
+			}
+			
+			else{	//cancels the reservation of passengers that are in the passenger list
+				
+				struct passengerNode *rem=temp2->next;
+					
+				temp2->next=temp2->next->next;
+		        free(rem);
+				
+				temp->reservationCount--;
+				
+				printf("CANCELLATION SUCCESSFUL\n");
+				
+				if(temp->waitingListHead->next!=NULL){	//transfers the passenger that is in the first place of the waiting list to the passenger list if there are any
+					
+					struct passengerNode *temp3=temp->passengerListHead, *temp2=malloc(sizeof(struct passengerNode)), *temp4;
+					if(temp2==NULL)	printf("OUT OF MEMORY !\n");
+					
+					strcpy(temp2->name,temp->waitingListHead->next->name);
+					
+					temp2->next=NULL;
+					
+					while(temp3->next!=NULL)	temp3=temp3->next;
+					
+					temp3->next=temp2;				
+					
+					temp4=temp->waitingListHead->next;
+					
+					temp->waitingListHead->next=temp->waitingListHead->next->next;
+					
+					free(temp4);
+					
+					temp->reservationCount++;
+				}
+			}
+		}
+	}
+}
+
+void inquire(char *name){	//shows information about given passenger
+	
+	struct flightRecord *temp=head->next;
+	struct passengerNode *temp2;
+	int counter=0;
+	
+	while(temp!=NULL){
+		
+		temp2=temp->passengerListHead->next;
+			
+		if(temp2!=NULL){
+			
+			while(strcmp(temp2->name,name)){
+				
+				temp2=temp2->next;
+				
+				if(temp2==NULL)	break;
+			}
+		}
+		
+		if(temp2!=NULL){
+		
+			printf("%s IS REGISTERED ON PASSENGER LIST OF FLIGHT NUMBER %d\n",name,temp->flightNo);
+		
+			counter=1;
+		}
+		
+		temp2=temp->waitingListHead->next;
+		
+		if(temp2!=NULL){
+			
+			while(strcmp(temp2->name,name)){
+				
+				temp2=temp2->next;
+				
+				if(temp2==NULL)	break;
+			}
+		}
+		
+		if(temp2!=NULL){
+		
+			if(!strcmp(temp2->name,name)){
+			
+				printf("%s IS REGISTERED ON WAITING LIST OF FLIGHT NUMBER %d\n",name,temp->flightNo);
+			
+				counter=1;
+			}
+		}
+		
+		temp=temp->next;	
+	}
+	
+	if(counter==0)	printf("%s IS NOT REGISTERED ANY OF THE FLIGHTS\n",name);
+}
+
+void status(){	//shows all informations about all the flights
+	
+	struct flightRecord *temp=head->next;
+	struct passengerNode *temp2;
+	int i;
+	
+	while(temp!=NULL){
+		
+		temp2=temp->waitingListHead->next;
+		
+		for(i=0;temp2!=NULL;i++)	temp2=temp2->next;
+		
+		printf("Flight Number : %d\nCapacity : %d\nNumber of Passengers : %d\nNumber of People in Waiting list : %d\nPassengers : \n",temp->flightNo,temp->capacity,temp->reservationCount,i);
+		
+		temp2=temp->passengerListHead->next;
+		
+		while(temp2!=NULL){	//prints names of passengers that are in passenger list
+			
+			printf("%s\n",temp2->name);
+			
+			temp2=temp2->next;			
+		}
+		
+		temp2=temp->waitingListHead->next;
+		
+		printf("\nWaiting List :\n");
+		
+		while(temp2!=NULL){	//prints names of passengers that are in waiting list
+			
+			printf("%s\n",temp2->name);
+			
+			temp2=temp2->next;			
+		}
+		
+		printf("\n");
+		
+		temp=temp->next;
+	}	
+}
