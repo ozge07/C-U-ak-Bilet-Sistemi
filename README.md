@@ -1,2 +1,2 @@
-# C-U-ak-Bilet-Sistemi
+# C-Uçak-Bilet-Sistemi
 C dilinde Uçak bilet sistemi
